@@ -83,7 +83,7 @@ class TransformerLayer(nn.Module):
             nn.Linear(d_model, d_internal),
             nn.ReLU(),
             nn.Linear(2 * d_internal, d_model)
-
+        )
     def forward(self, input_vecs):
         # input_vecs: [seq_len, d_model]
         Q = self.W_Q(input_vecs)  # [seq_len, d_internal]
