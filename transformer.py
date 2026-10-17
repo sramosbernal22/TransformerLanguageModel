@@ -9,6 +9,7 @@ from torch import optim
 import matplotlib.pyplot as plt
 from typing import List
 from utils import *
+import math
 
 
 # Wraps an example: stores the raw input string (input), the indexed form of the string (input_indexed),
@@ -39,15 +40,27 @@ class Transformer(nn.Module):
         :param num_layers: number of TransformerLayers to use; can be whatever you want
         """
         super().__init__()
+        self.embed = nn.Embedding(vocab_size, d_model)
+        self.pos_enc = PositionalEncoding(d_model, num_positions, batched=false)
+        # nn.ModuleList, NOT a plain Python list since weights will never get trained
+        self.layers = nn.ModuleList(
+            [TransformerLayer(d_Model, d_internal) for _ in range(num_layers)]
+        )
+        self.classifier = nn.Linear(d_model, num_classes)
+
     def forward(self, indices):
         """
-
         :param indices: list of input indices
         :return: A tuple of the softmax log probabilities (should be a 20x3 matrix) and a list of the attention
         maps you use in your layers (can be variable length, but each should be a 20x20 matrix)
         """
-        raise Exception("Implement me")
-
+        x = self.pos_enc(self.embed(indices))
+        attn_maps = []
+        for layer in self.layers:
+            x, attn = layer(x)
+            attn_maps.append(attn)
+        logits = self.classifier(x)
+        return torch.log_softmax(logits, dim=-1), attn_maps
 
 # Your implementation of the Transformer layer goes here. It should take vectors and return the same number of vectors
 # of the same length, applying self-attention, the feedforward layer, etc.
@@ -124,25 +137,27 @@ def train_classifier(args, train, dev):
 
     # The following code DOES NOT WORK but can be a starting point for your implementation
     # Some suggested snippets to use:
-    model = Transformer(...)
-    model.zero_grad()
-    model.train()
+    model = Transformer(vocab_size=27, num_positions=20, d_model=64,
+                        d_internal=32, num_classes=3, num_layers=2)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    loss_fcn = nn.NLLLoss()
 
     num_epochs = 10
-    for t in range(0, num_epochs):
-        loss_this_epoch = 0.0
+    for t in range(num_epochs):
+        model.train()
         random.seed(t)
-        # You can use batching if you'd like
-        ex_idxs = [i for i in range(0, len(train))]
+        ex_idxs = list(range(len(train)))
         random.shuffle(ex_idxs)
-        loss_fcn = nn.NLLLoss()
+        loss_this_epoch = 0.0
         for ex_idx in ex_idxs:
-            loss = loss_fcn(...) # TODO: Run forward and compute loss
-            # model.zero_grad()
-            # loss.backward()
-            # optimizer.step()
+            ex = train[ex_idx]
+            log_probs, _ = model(ex.input_tensor)             # [20, 3]
+            loss = loss_fcn(log_probs, ex.output_tensor)      # labels: [20]
+            model.zero_grad()
+            loss.backward()
+            optimizer.step()
             loss_this_epoch += loss.item()
+        print("Epoch %d: loss %.4f" % (t, loss_this_epoch / len(train)))
     model.eval()
     return model
 
