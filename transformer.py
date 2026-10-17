@@ -41,10 +41,10 @@ class Transformer(nn.Module):
         """
         super().__init__()
         self.embed = nn.Embedding(vocab_size, d_model)
-        self.pos_enc = PositionalEncoding(d_model, num_positions, batched=false)
+        self.pos_enc = PositionalEncoding(d_model, num_positions, batched=False)
         # nn.ModuleList, NOT a plain Python list since weights will never get trained
         self.layers = nn.ModuleList(
-            [TransformerLayer(d_Model, d_internal) for _ in range(num_layers)]
+            [TransformerLayer(d_model, d_internal) for _ in range(num_layers)]
         )
         self.classifier = nn.Linear(d_model, num_classes)
 
@@ -78,11 +78,11 @@ class TransformerLayer(nn.Module):
         #Learned Projections
         self.W_Q = nn.Linear(d_model, d_internal)
         self.W_K = nn.Linear(d_model, d_internal)
-        self.W_V = nn.Linear(d_model, d_internal)
+        self.W_V = nn.Linear(d_model, d_model)
         self.ff = nn.Sequential(
-            nn.Linear(d_model, d_internal),
+            nn.Linear(d_model, d_model),
             nn.ReLU(),
-            nn.Linear(2 * d_internal, d_model)
+            nn.Linear(2 * d_model, d_model)
         )
     def forward(self, input_vecs):
         # input_vecs: [seq_len, d_model]
@@ -90,7 +90,7 @@ class TransformerLayer(nn.Module):
         K = self.W_K(input_vecs)  # [seq_len, d_internal]
         V = self.W_V(input_vecs)  # [seq_len, d_internal]
 
-        scores = Q @ K.transpose(-2, -1) / np.sqrt(self.d_internal)  # [seq_len, seq_len]
+        scores = Q @ K.transpose(-2, -1) / math.sqrt(self.d_internal)  # [seq_len, seq_len]
         attn = torch.softmax(scores, dim=-1)  
         attended = attn @ V  # [seq_len, d_internal]
 
@@ -133,13 +133,9 @@ class PositionalEncoding(nn.Module):
 
 # This is a skeleton for train_classifier: you can implement this however you want
 def train_classifier(args, train, dev):
-    raise Exception("Not fully implemented yet")
-
-    # The following code DOES NOT WORK but can be a starting point for your implementation
-    # Some suggested snippets to use:
     model = Transformer(vocab_size=27, num_positions=20, d_model=64,
                         d_internal=32, num_classes=3, num_layers=2)
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
     loss_fcn = nn.NLLLoss()
 
     num_epochs = 10
