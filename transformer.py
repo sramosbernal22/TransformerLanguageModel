@@ -80,7 +80,7 @@ class TransformerLayer(nn.Module):
         self.W_K = nn.Linear(d_model, d_internal)
         self.W_V = nn.Linear(d_model, d_model)
         self.ff = nn.Sequential(
-            nn.Linear(d_model, d_model),
+            nn.Linear(d_model,  2 * d_model),
             nn.ReLU(),
             nn.Linear(2 * d_model, d_model)
         )
@@ -88,11 +88,11 @@ class TransformerLayer(nn.Module):
         # input_vecs: [seq_len, d_model]
         Q = self.W_Q(input_vecs)  # [seq_len, d_internal]
         K = self.W_K(input_vecs)  # [seq_len, d_internal]
-        V = self.W_V(input_vecs)  # [seq_len, d_internal]
+        V = self.W_V(input_vecs)  # [seq_len, d_model]
 
         scores = Q @ K.transpose(-2, -1) / math.sqrt(self.d_internal)  # [seq_len, seq_len]
         attn = torch.softmax(scores, dim=-1)  
-        attended = attn @ V  # [seq_len, d_internal]
+        attended = attn @ V  # [seq_len, d_model]
 
         x = input_vecs + attended   # residual #1
         x = x + self.ff(x)          # residual #2
